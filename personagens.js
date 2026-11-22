@@ -16,6 +16,7 @@ const TODAS = new Set([...CATALOGO.policia, ...CATALOGO.traficante]);
 // d = descrição da unidade que o jogo já troca: [id, time, sub, asset, bits, mdl, ...]
 function skinDaDescricao(d) {
   if (!Array.isArray(d) || d.length < 6) return null;
+  if (d[1] !== 'P' && d[1] !== 'E') return null;   // civis não têm aparência de jogador
   const asset = d[3], bits = d[4] | 0, mdl = d[5];
   if (asset) return String(asset);
   if (bits & 1) return 'traficante';
