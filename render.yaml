@@ -1,0 +1,20 @@
+# Publicação no Render: um serviço web Node entrega o jogo E a partida no mesmo endereço.
+# O HTML do jogo tem mais de 100 MB e NÃO vai no repositório (o GitHub recusa acima de 100 MB).
+# Ele é baixado no build a partir de URL_DO_JOGO (anexo de uma Release do GitHub, que aceita até 2 GB).
+services:
+  - type: web
+    name: operacao-contencao
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run baixar-jogo
+    startCommand: npm start
+    healthCheckPath: /saude
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: MAX_JOGADORES
+        value: "2"       # sala de 2, igual ao multiplayer do PC (v84)
+      - key: URL_DO_JOGO
+        sync: false      # o Render pede este valor ao criar: cole o link direto do HTML (anexo da Release)

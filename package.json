@@ -1,0 +1,26 @@
+{
+  "name": "operacao-contencao-online",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Servidor autoritativo (Colyseus) e hospedagem do jogo Operacao Contencao. Um unico endereco publico serve o jogo e a partida.",
+  "main": "servidor.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node servidor.js",
+    "baixar-jogo": "node baixar_jogo.js",
+    "teste": "node teste_10_jogadores.js"
+  },
+  "dependencies": {
+    "@colyseus/core": "^0.16.0",
+    "@colyseus/schema": "^3.0.0",
+    "@colyseus/ws-transport": "^0.16.0",
+    "colyseus": "^0.16.0",
+    "express": "^4.21.2"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "colyseus.js": "^0.16.22"
+  }
+}
