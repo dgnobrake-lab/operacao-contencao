@@ -5,6 +5,8 @@
 // mas passam por limites de velocidade e de area antes de virarem estado.
 const { Room } = require('@colyseus/core');
 const { Schema, MapSchema, defineTypes } = require('@colyseus/schema');
+const { Personagens } = require('./personagens');
+const links = require('./links');   // v90: skins e personagens exclusivos por partida
 
 // Em casa (servidor no PC do jogador) a sala é de 2; no Render o padrão continua 10.
 const MAX_JOGADORES = Math.max(2, Math.min(16, parseInt(process.env.MAX_JOGADORES || '10', 10) || 10));
@@ -13,6 +15,8 @@ const VEL_MAX = 30;             // unidades/s: acima disso e teleporte (carro ra
 const TIRO_MIN_MS = 55;         // cadencia maxima aceita (a arma mais rapida do jogo)
 const VIDA_CHEIA = 100;
 const RESPAWN_MS = 6000;
+// v90: quanto tempo a vaga (e a skin/personagem reservados) espera quem caiu da conexão
+const RESERVA_S = Math.max(5, Math.min(600, parseInt(process.env.RESERVA_S || '40', 10) || 40));
 
 class Jogador extends Schema {}
 // os campos sao exatamente os que o jogo ja troca na rede local (x,y em tiles; g = giro; s = velocidade;
@@ -22,16 +26,19 @@ defineTypes(Jogador, {
   x: 'float32', y: 'float32', g: 'float32', s: 'float32',
   a: 'uint8', c: 'uint8', d: 'uint8', h: 'uint8',
   vx: 'float32', vy: 'float32', vg: 'float32', vsub: 'string',
-  arma: 'uint8', pronto: 'boolean', ping: 'uint16', baixas: 'uint16'
+  arma: 'uint8', pronto: 'boolean', ping: 'uint16', baixas: 'uint16',
+  skin: 'string', uid: 'uint32'          // v90: aparência reservada e personagem que controla (aprovados pelo servidor)
 });
 
 class Estado extends Schema {
-  constructor() { super(); this.jogadores = new MapSchema(); }
+  constructor() { super(); this.jogadores = new MapSchema(); this.skins = new MapSchema(); this.posse = new MapSchema(); }
 }
 defineTypes(Estado, {
   jogadores: { map: Jogador },
   semente: 'uint32', comecou: 'boolean', modo: 'string',
-  codigo: 'string', max: 'uint8', dono: 'string', modalidade: 'string'
+  codigo: 'string', max: 'uint8', dono: 'string', modalidade: 'string',
+  skins: { map: 'string' },   // v90: skinId -> sessionId (quem está com a aparência nesta partida)
+  posse: { map: 'string' }    // v90: idUnidade -> sessionId (quem está controlando aquele personagem)
 });
 
 class SalaOperacao extends Room {
@@ -46,6 +53,7 @@ class SalaOperacao extends Room {
     this.state.comecou = false;
     this.state.modalidade = (opcoes && opcoes.modalidade) === 'coop' ? 'coop' : '1v1';
     this.setMetadata({ codigo: this.state.codigo, modo: this.state.modo, nome: (opcoes && opcoes.salaNome) || ('Sala ' + this.state.codigo) });
+    this.pers = new Personagens(this.state);
     this.ultimoTiro = new Map();
     this.ultimoMover = new Map();
 
@@ -69,12 +77,16 @@ class SalaOperacao extends Room {
     const para = (id) => this.clients.find(x => x.sessionId === id);
     this.onMessage('p', (cliente, d) => {
       if (!d) return; d.de = cliente.sessionId;
+      // v90: controlar um personagem exige aprovação do servidor — quem não foi aprovado não é repassado como dono
+      if (d.uid && !this.pers.podeEnviar(cliente.sessionId, d.uid)) { d.uid = 0; d.u = 0; delete d.du; this.pers.stats.recusados++; }
       this.broadcast('p', d, { except: cliente });
+      if (!d.uid) return;
       const j = this.state.jogadores.get(cliente.sessionId);
       if (j && Array.isArray(d.u)) { j.x = d.u[1] / 100; j.y = d.u[2] / 100; j.d = (d.u[5] & 32) ? 1 : 0; j.h = Math.max(0, Math.min(255, d.u[4] | 0)); }
     });
     this.onMessage('w', (cliente, d) => {
       if (!d || cliente.sessionId !== this.state.dono) return; d.de = cliente.sessionId;
+      if (d.du) this.pers.aprende(d.du);   // v90: a aparência de cada personagem vem do anfitrião (autoridade do mundo)
       this.broadcast('w', d, { except: cliente });
     });
     this.onMessage('ev', (cliente, d) => { if (!d) return; d.de = cliente.sessionId; this.broadcast('ev', d, { except: cliente }); });
@@ -88,6 +100,15 @@ class SalaOperacao extends Room {
       this.redistribuirLados();
       this.broadcast('modalidade', { modalidade: this.state.modalidade });
     });
+    // ---- v90: personagens (seleção e incorporação) — o cliente PEDE, o servidor decide ----
+    const responde = (cliente, op, pedido, r) => {
+      if (r.ok) this.pers.stats.aprovados++; else this.pers.stats.recusados++;
+      cliente.send('pers:r', Object.assign({ op, pedido: pedido || 0 }, r, { mapa: this.pers.disponibilidade() }));
+    };
+    this.onMessage('pers:reservar', (cliente, d) => { d = d || {}; responde(cliente, 'reservar', d.n, this.pers.reservar(cliente.sessionId, d.skin)); });
+    this.onMessage('pers:incorporar', (cliente, d) => { d = d || {}; responde(cliente, 'incorporar', d.n, this.pers.incorporar(cliente.sessionId, d.uid, d.skin)); });
+    this.onMessage('pers:soltar', (cliente, d) => { d = d || {}; responde(cliente, 'soltar', d.n, this.pers.soltarUnidade(cliente.sessionId, d.uid)); });
+    this.onMessage('pers:largar', (cliente, d) => { d = d || {}; this.pers.soltarTudo(cliente.sessionId); responde(cliente, 'largar', d.n, { ok: true }); });
     this.onMessage('chat', (cliente, d) => {
       const j = this.state.jogadores.get(cliente.sessionId); if (!j || !d || !d.txt) return;
       this.broadcast('chat', { de: j.nome, txt: String(d.txt).slice(0, 120) });
@@ -118,8 +139,10 @@ class SalaOperacao extends Room {
   }
 
   // o 11o jogador e recusado aqui, com motivo (o cliente mostra "sala cheia")
-  onAuth() { 
+  async onAuth(cliente, opcoes, contexto) {
     if (this.clients.length >= MAX_JOGADORES) throw new Error('SALA_CHEIA');
+    // links de teste: entrar numa partida também exige link ativo (desligado quando não há banco configurado)
+    if (!(await links.autorizaSala(contexto))) throw new Error('LINK_REVOGADO');
     return true;
   }
 
@@ -129,7 +152,7 @@ class SalaOperacao extends Room {
     j.nome = String((opcoes && opcoes.nome) || 'Jogador').slice(0, 16) || 'Jogador';
     j.modo = String((opcoes && opcoes.modo) || this.state.modo);
     j.x = 60; j.y = 60; j.g = 0; j.s = 0; j.a = 0; j.c = 0; j.d = 0; j.h = VIDA_CHEIA;
-    j.vx = 0; j.vy = 0; j.vg = 0; j.vsub = ''; j.arma = 0; j.pronto = false; j.ping = 0; j.baixas = 0;
+    j.vx = 0; j.vy = 0; j.vg = 0; j.vsub = ''; j.arma = 0; j.pronto = false; j.ping = 0; j.baixas = 0; j.skin = ''; j.uid = 0;
     this.state.jogadores.set(cliente.sessionId, j);
     if (!this.state.dono) this.state.dono = cliente.sessionId;
     this.redistribuirLados();
@@ -140,9 +163,10 @@ class SalaOperacao extends Room {
     const j = this.state.jogadores.get(cliente.sessionId);
     if (j) j.pronto = false;
     if (!intencional) {
-      try { await this.allowReconnection(cliente, 40); return; }   // 40 s para voltar
+      try { await this.allowReconnection(cliente, RESERVA_S); return; }   // v90: prazo configurável (RESERVA_S, padrão 40 s) — skin e personagem continuam dele
       catch (e) { /* nao voltou */ }
     }
+    this.pers.soltarTudo(cliente.sessionId);   // v90: saiu de vez — a skin e o personagem ficam livres para os outros
     this.state.jogadores.delete(cliente.sessionId);
     if (this.state.dono === cliente.sessionId) {
       const prox = this.state.jogadores.keys().next();

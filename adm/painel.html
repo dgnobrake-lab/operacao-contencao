@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Operação Contenção — Links de teste</title>
+<style>
+:root{--bg:#0b0f13;--card:#151b21;--line:#2a333c;--txt:#e8eef2;--sub:#93a3b0;--ok:#3fbf6f;--red:#e0484b;--gold:#ffd24a;--blue:#4b9be0}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 "Segoe UI",system-ui,Arial,sans-serif}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:12px 16px;background:#0e141a;border-bottom:1px solid var(--line)}
+header b{font-size:16px;letter-spacing:.4px}header span{flex:1;color:var(--sub);font-size:13px}
+main{max-width:980px;margin:0 auto;padding:16px;display:grid;gap:16px}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+h2{margin:0 0 10px;font-size:14px;letter-spacing:1px;text-transform:uppercase;color:var(--sub)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.kpi{background:#0f151b;border:1px solid var(--line);border-radius:10px;padding:10px 12px}.kpi b{display:block;font-size:24px}.kpi small{color:var(--sub)}
+button{font:700 13px "Segoe UI",system-ui,Arial;border-radius:8px;border:1px solid #3a4652;background:#222c35;color:var(--txt);padding:8px 12px;cursor:pointer}
+button.pri{background:var(--blue);border-color:#6db3f0;color:#04121f}button.danger{background:#3a1416;border-color:var(--red);color:#ffd9da}
+button:disabled{opacity:.5;cursor:default}
+input,select{font:14px "Segoe UI",system-ui,Arial;background:#0f151b;color:var(--txt);border:1px solid #3a4652;border-radius:8px;padding:8px 10px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.row>input{flex:1 1 200px}
+.lst{display:grid;gap:8px}
+.it{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;background:#0f151b;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.it .t{font-weight:700;word-break:break-all}.it .m{grid-column:1/-1;color:var(--sub);font-size:12.5px}.it .a{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.tag{display:inline-block;font:800 10.5px "Segoe UI";letter-spacing:.5px;padding:2px 7px;border-radius:5px;margin-right:6px;vertical-align:1px}
+.tag.on{background:#123d22;color:#9ff0bd}.tag.off{background:#3a1416;color:#ffc2c4}.tag.rd{background:#2b2410;color:var(--gold)}
+.novo{display:none;margin-top:10px;padding:10px;border-radius:10px;background:#0f2a1a;border:1px solid var(--ok)}.novo code{word-break:break-all;font-size:13px}
+.vazio{color:var(--sub);font-size:13px;padding:6px 0}
+#login{max-width:380px;margin:12vh auto;display:none}#app{display:none}
+#msg{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#222c35;border:1px solid #3a4652;border-radius:10px;padding:9px 14px;display:none;z-index:9}
+dialog{background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:12px;max-width:420px;width:92vw}
+dialog::backdrop{background:#000a}
+@media (max-width:560px){.it{grid-template-columns:1fr}.it .a{justify-content:flex-start}}
+</style>
+</head>
+<body>
+<section id="login">
+  <h2>Painel do administrador</h2>
+  <form id="fl" class="row"><input id="senha" type="password" autocomplete="current-password" placeholder="Senha do administrador" required><button class="pri">Entrar</button></form>
+  <div id="le" class="vazio"></div>
+</section>
+<div id="app">
+<header><b>LINKS DE TESTE</b><span id="hd">Operação Contenção</span><button id="atual">Atualizar</button><button id="sair">Sair</button></header>
+<main>
+  <section id="s-visao"><h2>1 · Visão geral</h2><div class="kpis" id="kpis"></div></section>
+  <section id="s-gerar"><h2>4 · Gerar novo link</h2>
+    <div class="row"><input id="rot" maxlength="60" placeholder="Para quem é o link (opcional)"><select id="rsel"></select><button class="pri" id="gerar">Gerar link</button></div>
+    <div class="novo" id="novo"><div style="margin-bottom:6px">Link criado:</div><code id="novoUrl"></code><div class="row" style="margin-top:8px"><button id="copNovo">Copiar link</button></div></div>
+  </section>
+  <section id="s-ativos"><h2>2 · Links ativos</h2><div class="lst" id="ativos"></div></section>
+  <section id="s-revog"><h2>3 · Links revogados</h2><div class="lst" id="revog"></div></section>
+  <section id="s-hist"><h2>5 · Histórico de testes (rodadas)</h2>
+    <div class="row" style="margin-bottom:10px"><input id="rnome" maxlength="60" placeholder="Nome da nova rodada (opcional)"><button id="novaR">Criar nova rodada</button></div>
+    <div class="lst" id="hist"></div></section>
+  <section id="s-encerrar"><h2>6 · Encerrar rodada de testes</h2>
+    <div class="row"><select id="esel"></select><button class="danger" id="encerrar">Encerrar rodada (revoga todos os links dela)</button></div></section>
+</main>
+</div>
+<dialog id="dlg"><p id="dq"></p><div class="row" style="justify-content:flex-end"><button id="dn">Cancelar</button><button class="danger" id="dy">Confirmar</button></div></dialog>
+<div id="msg"></div>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const fmt=d=>d?new Date(d).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})+' (Brasília)':'—';
+const url=id=>location.origin+'/t/'+id;
+function aviso(t){const m=$('msg');m.textContent=t;m.style.display='block';clearTimeout(aviso._t);aviso._t=setTimeout(()=>m.style.display='none',2600);}
+async function api(met,cam,corpo){const r=await fetch('/adm/api'+cam,{method:met,credentials:'same-origin',headers:{'Content-Type':'application/json','x-oc-adm':'1'},body:corpo?JSON.stringify(corpo):undefined});
+  if(r.status===401){mostra(false);throw new Error('sessão');}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.erro||('erro '+r.status));return j;}
+function confirma(t){return new Promise(res=>{const d=$('dlg');$('dq').textContent=t;d.showModal();$('dy').onclick=()=>{d.close();res(true);};$('dn').onclick=()=>{d.close();res(false);};});}
+async function copia(t){try{await navigator.clipboard.writeText(t);aviso('Link copiado');}catch(e){const i=document.createElement('textarea');i.value=t;document.body.appendChild(i);i.select();try{document.execCommand('copy');aviso('Link copiado');}catch(_){aviso('Copie manualmente');}i.remove();}}
+function mostra(on){$('login').style.display=on?'none':'block';$('app').style.display=on?'block':'none';}
+function item(l){const d=document.createElement('div');d.className='it';
+  const on=l.estado==='ativo';
+  d.innerHTML='<div class="t"></div><div class="a"></div><div class="m"></div>';
+  d.querySelector('.t').innerHTML='<span class="tag '+(on?'on':'off')+'">'+(on?'ATIVO':'REVOGADO')+'</span>'+(l.rodada?'<span class="tag rd"></span>':'');
+  if(l.rodada)d.querySelector('.tag.rd').textContent=l.rodada;
+  d.querySelector('.t').appendChild(document.createTextNode(l.rotulo||('Link '+l.id.slice(0,6))));
+  d.querySelector('.m').textContent='Criado: '+fmt(l.criado_em)+(on?'':' · Revogado: '+fmt(l.revogado_em))+' · Acessos: '+l.acessos+(l.ultimo_acesso?' · Último acesso: '+fmt(l.ultimo_acesso):'')+' · '+url(l.id);
+  const a=d.querySelector('.a');
+  if(on){const c=document.createElement('button');c.textContent='Copiar';c.onclick=()=>copia(url(l.id));a.appendChild(c);
+    const r=document.createElement('button');r.className='danger';r.textContent='Revogar';
+    r.onclick=async()=>{if(!await confirma('Revogar "'+(l.rotulo||'Link '+l.id.slice(0,6))+'"? Quem usa esse link não consegue mais abrir o jogo.'))return;try{await api('POST','/links/'+encodeURIComponent(l.id)+'/revogar');aviso('Link revogado');carrega();}catch(e){aviso('Falhou: '+e.message);}};a.appendChild(r);}
+  return d;}
+let E=null;
+async function carrega(){E=await api('GET','/estado');
+  if(!E.ligado){$('hd').textContent='Controle de links DESLIGADO (falta DATABASE_URL no servidor)';}
+  const L=E.links||[],R=E.rodadas||[];const at=L.filter(l=>l.estado==='ativo'),rv=L.filter(l=>l.estado!=='ativo');
+  const abertas=R.filter(r=>!r.encerrada_em);
+  $('kpis').innerHTML='';[['Links ativos',at.length],['Links revogados',rv.length],['Acessos (total)',L.reduce((a,l)=>a+l.acessos,0)],['Rodadas abertas',abertas.length]].forEach(([n,v])=>{const k=document.createElement('div');k.className='kpi';k.innerHTML='<b></b><small></small>';k.querySelector('b').textContent=v;k.querySelector('small').textContent=n;$('kpis').appendChild(k);});
+  const enche=(el,arr,vz)=>{el.innerHTML='';if(!arr.length){el.innerHTML='<div class="vazio"></div>';el.firstChild.textContent=vz;return;}arr.forEach(x=>el.appendChild(item(x)));};
+  enche($('ativos'),at,'Nenhum link ativo.');enche($('revog'),rv,'Nenhum link revogado.');
+  for(const s of [$('rsel'),$('esel')]){const v=s.value;s.innerHTML='';abertas.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.nome;s.appendChild(o);});if(v)s.value=v;}
+  $('gerar').disabled=!abertas.length;$('encerrar').disabled=!abertas.length;
+  const h=$('hist');h.innerHTML='';R.forEach(r=>{const d=document.createElement('div');d.className='it';d.innerHTML='<div class="t"></div><div class="a"></div><div class="m"></div>';
+    d.querySelector('.t').innerHTML='<span class="tag '+(r.encerrada_em?'off':'on')+'">'+(r.encerrada_em?'ENCERRADA':'ABERTA')+'</span>';d.querySelector('.t').appendChild(document.createTextNode(r.nome));
+    d.querySelector('.m').textContent='Criada: '+fmt(r.criada_em)+(r.encerrada_em?' · Encerrada: '+fmt(r.encerrada_em):'')+' · Links: '+r.links+' ('+r.ativos+' ativos) · Acessos: '+r.acessos;h.appendChild(d);});}
+$('fl').onsubmit=async e=>{e.preventDefault();$('le').textContent='';
+  const r=await fetch('/adm/api/entrar',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','x-oc-adm':'1'},body:JSON.stringify({senha:$('senha').value})});
+  $('senha').value='';if(r.ok){mostra(true);carrega();}else $('le').textContent=r.status===429?'Muitas tentativas. Espere 15 minutos.':'Senha incorreta.';};
+$('sair').onclick=async()=>{await fetch('/adm/api/sair',{method:'POST',credentials:'same-origin',headers:{'x-oc-adm':'1'}});mostra(false);};
+$('atual').onclick=()=>carrega().catch(e=>aviso(e.message));
+$('gerar').onclick=async()=>{try{const j=await api('POST','/links',{rotulo:$('rot').value,rodada:+$('rsel').value});$('rot').value='';$('novoUrl').textContent=url(j.id);$('novo').style.display='block';$('copNovo').onclick=()=>copia(url(j.id));carrega();}catch(e){aviso('Falhou: '+e.message);}};
+$('novaR').onclick=async()=>{try{await api('POST','/rodadas',{nome:$('rnome').value});$('rnome').value='';aviso('Rodada criada');carrega();}catch(e){aviso('Falhou: '+e.message);}};
+$('encerrar').onclick=async()=>{const s=$('esel');const nome=s.options[s.selectedIndex]&&s.options[s.selectedIndex].text;if(!nome)return;
+  if(!await confirma('Encerrar "'+nome+'"? TODOS os links ativos dessa rodada serão revogados.'))return;
+  try{const j=await api('POST','/rodadas/'+s.value+'/encerrar');aviso('Rodada encerrada · '+j.revogados+' link(s) revogado(s)');carrega();}catch(e){aviso('Falhou: '+e.message);}};
+api('GET','/estado').then(()=>{mostra(true);carrega();}).catch(()=>mostra(false));
+})();
+</script>
+</body>
+</html>

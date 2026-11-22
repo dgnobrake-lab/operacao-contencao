@@ -4,6 +4,8 @@
 //   GET  /                -> o jogo
 //   GET  /saude           -> health check da hospedagem
 //   GET  /salas           -> salas abertas (JSON), para a lista no jogo
+//   GET  /t/<codigo>      -> link de teste (confere no banco e libera o jogo para esse navegador)
+//   GET  /adm             -> painel do administrador dos links
 //   WS   /                -> Colyseus
 const path = require('path');
 const fs = require('fs');
@@ -13,6 +15,7 @@ const { Server } = require('@colyseus/core');
 const { WebSocketTransport } = require('@colyseus/ws-transport');
 const { matchMaker } = require('@colyseus/core');
 const { SalaOperacao, MAX_JOGADORES } = require('./sala');
+const links = require('./links');   // links de teste com revogação (liga sozinho quando há DATABASE_URL)
 
 const PORTA = process.env.PORT || 2567;
 const PASTA = process.env.PASTA_JOGO || path.join(__dirname, 'publico');
@@ -21,6 +24,9 @@ const ARQUIVO_JOGO = process.env.ARQUIVO_JOGO || 'index.html';
 const app = express();
 app.disable('x-powered-by');
 app.use((req, res, next) => { res.setHeader('Access-Control-Allow-Origin', '*'); next(); });
+app.set('trust proxy', 1);
+// links de teste: tem de vir ANTES dos arquivos (senão /index.html e / passariam sem conferir o link)
+links.instala(app, express, fs.readFileSync(path.join(__dirname, 'adm', 'painel.html'), 'utf8'));
 
 // o HTML do jogo tem mais de 100 MB: compressao e cache valem muito aqui
 app.use(express.static(PASTA, {
@@ -56,7 +62,9 @@ const servidorHttp = http.createServer(app);
 const gameServer = new Server({ transport: new WebSocketTransport({ server: servidorHttp, maxPayload: 512 * 1024 }) });
 gameServer.define('oc', SalaOperacao).filterBy(['codigo']);   // mesmo codigo = mesma sala
 
-servidorHttp.listen(PORTA, () => {
-  console.log('[OC] servidor no ar na porta ' + PORTA + ' | pasta do jogo: ' + PASTA);
+links.prepara().catch(e => console.error('[links] banco:', e.message)).finally(() => {
+  servidorHttp.listen(PORTA, () => {
+    console.log('[OC] servidor no ar na porta ' + PORTA + ' | pasta do jogo: ' + PASTA + ' | links de teste: ' + (links.LIGADO ? 'LIGADO' : 'desligado'));
+  });
 });
 module.exports = { app, gameServer, servidorHttp };
