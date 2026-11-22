@@ -67,6 +67,16 @@ class SalaOperacao extends Room {
       this.state.comecou = true; this.broadcast('comecou', { semente: this.state.semente, modo: this.state.modo });
     });
     this.onMessage('ping', (cliente, d) => cliente.send('pong', d));
+    // v93: diagnóstico do aparelho de cada jogador (navegador, GPU, WebGL, toque, microfone, erros) — sem dado pessoal
+    this.onMessage('diag', (cliente, d) => {
+      try {
+        const agora = Date.now(); cliente.userData = cliente.userData || {};
+        if (agora - (cliente.userData.diagEm || 0) < 15000) return; cliente.userData.diagEm = agora;
+        const j = this.state.jogadores.get(cliente.sessionId);
+        const txt = JSON.stringify(d || {}).slice(0, 4000);
+        console.log('[diag] sala=' + this.roomId + ' jogador=' + cliente.sessionId + ' lado=' + ((j && j.modo) || '?') + ' ' + txt);
+      } catch (e) { console.log('[diag] erro', e && e.message); }
+    });
     // ---- v86: mundo compartilhado ----
     // 'p'  : estado do personagem/veículo que o jogador controla (30/s) -> repassado na hora aos outros
     // 'w'  : instantâneo do mundo (NPCs e veículos) — só o anfitrião (dono da sala) manda

@@ -28,6 +28,28 @@ app.set('trust proxy', 1);
 // links de teste: tem de vir ANTES dos arquivos (senão /index.html e / passariam sem conferir o link)
 links.instala(app, express, fs.readFileSync(path.join(__dirname, 'adm', 'painel.html'), 'utf8'));
 
+// v93: o jogo vai COMPRIMIDO (gzip, ~28% menor: 134 MB → ~96 MB) para quem aceita — ajuda celular fraco e internet ruim.
+// O .gz é feito uma vez depois que o servidor sobe; até ficar pronto, vai o HTML normal.
+const zlib = require('zlib');
+const arqJogo = () => path.join(PASTA, ARQUIVO_JOGO);
+function gzValido() { try { const a = fs.statSync(arqJogo()), g = fs.statSync(arqJogo() + '.gz'); return g.mtimeMs >= a.mtimeMs && g.size > 1000; } catch (e) { return false; } }
+function preparaGz() {
+  try {
+    if (!fs.existsSync(arqJogo()) || gzValido()) return;
+    const tmp = arqJogo() + '.gz.tmp', t0 = Date.now();
+    fs.createReadStream(arqJogo()).pipe(zlib.createGzip({ level: 6 })).pipe(fs.createWriteStream(tmp))
+      .on('finish', () => { try { fs.renameSync(tmp, arqJogo() + '.gz'); console.log('[gzip] jogo comprimido:', fs.statSync(arqJogo() + '.gz').size, 'bytes em', Date.now() - t0, 'ms'); } catch (e) { console.log('[gzip] erro', e.message); } })
+      .on('error', e => console.log('[gzip] erro', e.message));
+  } catch (e) { console.log('[gzip] erro', e.message); }
+}
+app.get(['/', '/' + ARQUIVO_JOGO], (req, res, next) => {
+  if (!/\bgzip\b/.test(req.headers['accept-encoding'] || '') || !gzValido()) return next();
+  const gz = arqJogo() + '.gz', st = fs.statSync(gz);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.setHeader('Content-Encoding', 'gzip'); res.setHeader('Vary', 'Accept-Encoding');
+  res.setHeader('Cache-Control', 'public, max-age=3600'); res.setHeader('Content-Length', st.size); res.setHeader('Last-Modified', st.mtime.toUTCString());
+  if (req.method === 'HEAD') return res.end();
+  fs.createReadStream(gz).pipe(res);
+});
 // o HTML do jogo tem mais de 100 MB: compressao e cache valem muito aqui
 app.use(express.static(PASTA, {
   maxAge: '7d', etag: true, lastModified: true,
@@ -64,6 +86,7 @@ gameServer.define('oc', SalaOperacao).filterBy(['codigo']);   // mesmo codigo = 
 
 links.prepara().catch(e => console.error('[links] banco:', e.message)).finally(() => {
   servidorHttp.listen(PORTA, () => {
+    setTimeout(preparaGz, 1500);
     console.log('[OC] servidor no ar na porta ' + PORTA + ' | pasta do jogo: ' + PASTA + ' | links de teste: ' + (links.LIGADO ? 'LIGADO' : 'desligado'));
   });
 });
