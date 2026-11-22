@@ -1,0 +1,2 @@
+Esta pasta fica vazia no repositório.
+No Render, o build baixa o jogo para cá como index.html (variável URL_DO_JOGO).
