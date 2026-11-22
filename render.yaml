@@ -15,4 +15,4 @@ services:
       - key: NODE_VERSION
         value: "20"
       - key: MAX_JOGADORES
-        value: "2"       # sala de 2, igual ao multiplayer do PC (v84)
+        value: "4"       # v86: sala única de até 4 jogadores

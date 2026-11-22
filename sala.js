@@ -59,6 +59,29 @@ class SalaOperacao extends Room {
       this.state.comecou = true; this.broadcast('comecou', { semente: this.state.semente, modo: this.state.modo });
     });
     this.onMessage('ping', (cliente, d) => cliente.send('pong', d));
+    // ---- v86: mundo compartilhado ----
+    // 'p'  : estado do personagem/veículo que o jogador controla (30/s) -> repassado na hora aos outros
+    // 'w'  : instantâneo do mundo (NPCs e veículos) — só o anfitrião (dono da sala) manda
+    // 'ev' : evento imediato (tiro, ferimento, morte, veículo destruído)
+    // 'hit': acerto em algo que pertence a outro jogador -> vai direto para quem tem a autoridade
+    // 'pedir': quem entrou pede o quadro-chave completo ao anfitrião
+    // 'sig': sinalização da voz (WebRTC) entre os dois jogadores
+    const para = (id) => this.clients.find(x => x.sessionId === id);
+    this.onMessage('p', (cliente, d) => {
+      if (!d) return; d.de = cliente.sessionId;
+      this.broadcast('p', d, { except: cliente });
+      const j = this.state.jogadores.get(cliente.sessionId);
+      if (j && Array.isArray(d.u)) { j.x = d.u[1] / 100; j.y = d.u[2] / 100; j.d = (d.u[5] & 32) ? 1 : 0; j.h = Math.max(0, Math.min(255, d.u[4] | 0)); }
+    });
+    this.onMessage('w', (cliente, d) => {
+      if (!d || cliente.sessionId !== this.state.dono) return; d.de = cliente.sessionId;
+      this.broadcast('w', d, { except: cliente });
+    });
+    this.onMessage('ev', (cliente, d) => { if (!d) return; d.de = cliente.sessionId; this.broadcast('ev', d, { except: cliente }); });
+    this.onMessage('hit', (cliente, d) => { if (!d) return; d.de = cliente.sessionId; const a = para(d.para); if (a && a !== cliente) a.send('hit', d); });
+    this.onMessage('pedir', (cliente) => { const h = para(this.state.dono); if (h && h !== cliente) h.send('pedir', { de: cliente.sessionId }); });
+    this.onMessage('ping2', (cliente, d) => cliente.send('pong2', d));
+    this.onMessage('sig', (cliente, d) => { if (!d) return; d.de = cliente.sessionId; const a = para(d.para); if (a && a !== cliente) a.send('sig', d); });
     this.onMessage('modalidade', (cliente, d) => {
       if (cliente.sessionId !== this.state.dono || !d) return;
       this.state.modalidade = d.modalidade === 'coop' ? 'coop' : '1v1';
@@ -71,7 +94,7 @@ class SalaOperacao extends Room {
     });
   }
 
-  // 1v1: o primeiro fica com o lado que escolheu e o segundo entra do lado oposto.
+  // 1v1/2v2: os jogadores entram alternando de lado (o 1º e o 3º com o dono, o 2º e o 4º do lado oposto).
   // cooperativo: os dois do mesmo lado.
   redistribuirLados() {
     const ids = [...this.state.jogadores.keys()];
@@ -83,7 +106,7 @@ class SalaOperacao extends Room {
     for (const id of ids) {
       const j = this.state.jogadores.get(id);
       if (!j) continue;
-      j.lado = (this.state.modalidade === 'coop') ? ladoDono : (i === 0 ? ladoDono : oposto);
+      j.lado = (this.state.modalidade === 'coop') ? ladoDono : (i % 2 === 0 ? ladoDono : oposto);   // v86: até 4 — 1v1 vira 2 contra 2
       i++;
     }
   }

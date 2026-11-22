@@ -53,7 +53,7 @@ app.get('/', (req, res, next) => {
 });
 
 const servidorHttp = http.createServer(app);
-const gameServer = new Server({ transport: new WebSocketTransport({ server: servidorHttp, maxPayload: 64 * 1024 }) });
+const gameServer = new Server({ transport: new WebSocketTransport({ server: servidorHttp, maxPayload: 512 * 1024 }) });
 gameServer.define('oc', SalaOperacao).filterBy(['codigo']);   // mesmo codigo = mesma sala
 
 servidorHttp.listen(PORTA, () => {
