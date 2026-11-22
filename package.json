@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node servidor.js",
     "baixar-jogo": "node baixar_jogo.js",
-    "teste": "node teste_10_jogadores.js"
+    "teste": "node teste_10_jogadores.js",
+    "montar-jogo": "node -e \"process.exit(process.env.URL_DO_JOGO?1:0)\" && node juntar_jogo.js || node baixar_jogo.js"
   },
   "dependencies": {
     "@colyseus/core": "^0.16.0",
