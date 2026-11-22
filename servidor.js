@@ -46,14 +46,19 @@ app.get(['/', '/' + ARQUIVO_JOGO], (req, res, next) => {
   if (!/\bgzip\b/.test(req.headers['accept-encoding'] || '') || !gzValido()) return next();
   const gz = arqJogo() + '.gz', st = fs.statSync(gz);
   res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.setHeader('Content-Encoding', 'gzip'); res.setHeader('Vary', 'Accept-Encoding');
-  res.setHeader('Cache-Control', 'public, max-age=3600'); res.setHeader('Content-Length', st.size); res.setHeader('Last-Modified', st.mtime.toUTCString());
+  // v93b: o HTML do jogo é SEMPRE conferido com o servidor (antes ficava 1 hora guardado no celular e a versão nova não aparecia).
+  // Se não mudou, a resposta é 304 (sem baixar de novo).
+  const etag = '"oc-' + st.size + '-' + Math.round(st.mtimeMs) + '"';
+  res.setHeader('Cache-Control', 'no-cache'); res.setHeader('ETag', etag); res.setHeader('Last-Modified', st.mtime.toUTCString());
+  if (req.headers['if-none-match'] === etag) { res.statusCode = 304; return res.end(); }
+  res.setHeader('Content-Length', st.size);
   if (req.method === 'HEAD') return res.end();
   fs.createReadStream(gz).pipe(res);
 });
 // o HTML do jogo tem mais de 100 MB: compressao e cache valem muito aqui
 app.use(express.static(PASTA, {
   maxAge: '7d', etag: true, lastModified: true,
-  setHeaders: (res, p) => { if (p.endsWith('.html')) res.setHeader('Cache-Control', 'public, max-age=3600'); }
+  setHeaders: (res, p) => { if (p.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache'); }   // v93b: sempre confere a versão
 }));
 
 app.get('/saude', (req, res) => {
