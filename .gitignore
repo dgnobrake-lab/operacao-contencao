@@ -1,0 +1,4 @@
+node_modules/
+publico/index.html
+publico/*.parcial
+npm-debug.log
