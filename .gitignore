@@ -4,3 +4,4 @@ publico/*.parcial
 npm-debug.log
 publico/*.gz
 publico/*.gz.tmp
+publico/teste.html

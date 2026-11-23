@@ -42,6 +42,21 @@ function preparaGz() {
       .on('error', e => console.log('[gzip] erro', e.message));
   } catch (e) { console.log('[gzip] erro', e.message); }
 }
+// v94: versão de TESTE em /teste (publico/teste.html), também comprimida
+const arqTeste = () => path.join(PASTA, 'teste.html');
+function gzValidoT() { try { const a = fs.statSync(arqTeste()), g = fs.statSync(arqTeste() + '.gz'); return g.mtimeMs >= a.mtimeMs && g.size > 1000; } catch (e) { return false; } }
+function preparaGzT() { try { if (!fs.existsSync(arqTeste()) || gzValidoT()) return; const tmp = arqTeste() + '.gz.tmp';
+  fs.createReadStream(arqTeste()).pipe(zlib.createGzip({ level: 6 })).pipe(fs.createWriteStream(tmp)).on('finish', () => { try { fs.renameSync(tmp, arqTeste() + '.gz'); console.log('[gzip] teste comprimido'); } catch (e) {} }); } catch (e) {} }
+app.get(['/teste', '/teste.html'], (req, res) => {
+  if (!fs.existsSync(arqTeste())) return res.status(404).type('html').send('<h2>Sem versão de teste no momento</h2>');
+  res.setHeader('Cache-Control', 'no-cache');
+  if (!/\bgzip\b/.test(req.headers['accept-encoding'] || '') || !gzValidoT()) return res.sendFile(arqTeste());
+  const gz = arqTeste() + '.gz', st = fs.statSync(gz);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.setHeader('Content-Encoding', 'gzip'); res.setHeader('Vary', 'Accept-Encoding');
+  const etag = '"oct-' + st.size + '-' + Math.round(st.mtimeMs) + '"'; res.setHeader('ETag', etag);
+  if (req.headers['if-none-match'] === etag) { res.statusCode = 304; return res.end(); }
+  res.setHeader('Content-Length', st.size); if (req.method === 'HEAD') return res.end(); fs.createReadStream(gz).pipe(res);
+});
 app.get(['/', '/' + ARQUIVO_JOGO], (req, res, next) => {
   if (!/\bgzip\b/.test(req.headers['accept-encoding'] || '') || !gzValido()) return next();
   const gz = arqJogo() + '.gz', st = fs.statSync(gz);
@@ -92,6 +107,7 @@ gameServer.define('oc', SalaOperacao).filterBy(['codigo']);   // mesmo codigo = 
 links.prepara().catch(e => console.error('[links] banco:', e.message)).finally(() => {
   servidorHttp.listen(PORTA, () => {
     setTimeout(preparaGz, 1500);
+    setTimeout(preparaGzT, 60000);
     console.log('[OC] servidor no ar na porta ' + PORTA + ' | pasta do jogo: ' + PASTA + ' | links de teste: ' + (links.LIGADO ? 'LIGADO' : 'desligado'));
   });
 });

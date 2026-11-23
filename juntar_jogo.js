@@ -14,3 +14,18 @@ const obtido = hash.digest('hex');
 let esperado = ''; try { esperado = fs.readFileSync(path.join(pasta, 'SHA256.txt'), 'utf8').trim(); } catch (e) {}
 if (esperado && esperado !== obtido) { console.error('[OC] SHA-256 não confere: ' + obtido); process.exit(1); }
 console.log('[OC] jogo montado: ' + partes.length + ' partes, ' + (fs.statSync(destino).size / 1048576).toFixed(1) + ' MB, SHA-256 ok');
+// v94: versão de TESTE (opcional) em jogo_teste/ → publico/teste.html (o jogo principal continua em publico/index.html)
+try {
+  const pt = path.join(__dirname, 'jogo_teste');
+  if (fs.existsSync(pt)) {
+    const ps = fs.readdirSync(pt).filter(f => /^parte_\d+$/.test(f)).sort();
+    if (ps.length) {
+      const dst = path.join(__dirname, 'publico', 'teste.html'), h = crypto.createHash('sha256'), fd2 = fs.openSync(dst, 'w');
+      for (const p of ps) { const b = fs.readFileSync(path.join(pt, p)); h.update(b); fs.writeSync(fd2, b); }
+      fs.closeSync(fd2);
+      const ob = h.digest('hex'); let es = ''; try { es = fs.readFileSync(path.join(pt, 'SHA256.txt'), 'utf8').trim(); } catch (e) {}
+      if (es && es !== ob) { console.error('[OC] teste: SHA-256 não confere — versão de teste removida'); fs.unlinkSync(dst); }
+      else console.log('[OC] versão de teste montada: ' + ps.length + ' partes, ' + (fs.statSync(dst).size / 1048576).toFixed(1) + ' MB');
+    }
+  }
+} catch (e) { console.error('[OC] versão de teste:', e.message); }
