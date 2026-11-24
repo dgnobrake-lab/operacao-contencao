@@ -67,6 +67,22 @@ class SalaOperacao extends Room {
       this.state.comecou = true; this.broadcast('comecou', { semente: this.state.semente, modo: this.state.modo });
     });
     this.onMessage('ping', (cliente, d) => cliente.send('pong', d));
+    // ---- v102: AMBIENTE da partida (hora do dia, velocidade do dia, pausa, tempo/chuva) — igual para todos na sala ----
+    // Quem mexe no painel do relógio manda 'amb'; o servidor guarda e repassa. Quem entra pede 'amb?' e recebe o atual.
+    this.amb = { vel: 30, parado: false, ajusteH: 0, horaParada: null, clima: 'auto', v: 0, por: '' };
+    const CLIMAS = ['auto', 'limpo', 'nublado', 'fraca', 'forte', 'temporal'];
+    const ambEnvia = (alvo) => { const d = Object.assign({}, this.amb, { agora: Date.now() }); if (alvo) alvo.send('amb', d); else this.broadcast('amb', d); };
+    this.onMessage('amb?', (cliente) => ambEnvia(cliente));
+    this.onMessage('amb', (cliente, d) => {
+      if (!d) return; const A = this.amb, num = (v, a, b) => (typeof v === 'number' && isFinite(v)) ? Math.max(a, Math.min(b, v)) : null;
+      const vel = num(d.vel, 0.1, 1000); if (vel !== null) A.vel = vel;
+      if (typeof d.parado === 'boolean') A.parado = d.parado;
+      const aj = num(d.ajusteH, -48, 48); if (aj !== null) A.ajusteH = aj;
+      const hp = num(d.horaParada, 0, 24); A.horaParada = hp;
+      if (CLIMAS.includes(d.clima)) A.clima = d.clima;
+      A.v++; const j = this.state.jogadores.get(cliente.sessionId); A.por = j ? j.nome : '';
+      ambEnvia(null);
+    });
     // v93: diagnóstico do aparelho de cada jogador (navegador, GPU, WebGL, toque, microfone, erros) — sem dado pessoal
     this.onMessage('diag', (cliente, d) => {
       try {
@@ -167,6 +183,7 @@ class SalaOperacao extends Room {
     if (!this.state.dono) this.state.dono = cliente.sessionId;
     this.redistribuirLados();
     this.broadcast('entrou', { id: cliente.sessionId, nome: j.nome, total: this.state.jogadores.size, lado: j.lado });
+    try { cliente.send('amb', Object.assign({}, this.amb, { agora: Date.now() })); } catch (e) { }   // v102: já entra com a hora e o tempo da sala
   }
 
   async onLeave(cliente, intencional) {
